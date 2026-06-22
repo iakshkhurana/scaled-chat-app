@@ -1,122 +1,70 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from 'react';
+import { getToken, setToken, clearToken, decodeToken } from './lib/auth';
+import { AuthScreen } from './components/AuthScreen';
+import { ChatApp } from './components/ChatApp';
+import { Landing } from './components/Landing';
+import { DocsPage } from './components/DocsPage';
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+// Tiny hash-based router so a refresh keeps you on the same view:
+//   #/        -> landing (home)
+//   #/app     -> the chat app (auth screen, or chat once logged in)
+function useHashRoute() {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
+  return hash;
 }
 
-export default App
+function goToApp() {
+  window.location.hash = '#/app';
+}
+function goHome() {
+  window.location.hash = '';
+}
+function goToDocs() {
+  window.location.hash = '#/docs';
+}
+
+export default function App() {
+  const hash = useHashRoute();
+  const [token, setTokenState] = useState<string | null>(getToken());
+  const me = token ? decodeToken(token) : null;
+
+  // Docs route.
+  if (hash.startsWith('#/docs')) {
+    return <DocsPage onEnter={goToApp} onHome={goHome} />;
+  }
+
+  // Anything that isn't the app route shows the landing page.
+  if (!hash.startsWith('#/app')) {
+    return <Landing loggedIn={!!token} onEnter={goToApp} onDocs={goToDocs} />;
+  }
+
+  // App route, but not logged in -> auth screen.
+  if (!token || !me) {
+    return (
+      <AuthScreen
+        onAuthed={(t) => {
+          setToken(t);
+          setTokenState(t);
+        }}
+      />
+    );
+  }
+
+  // Logged in -> chat.
+  return (
+    <ChatApp
+      token={token}
+      me={me}
+      onLogout={() => {
+        clearToken();
+        setTokenState(null);
+        goHome();
+      }}
+    />
+  );
+}
