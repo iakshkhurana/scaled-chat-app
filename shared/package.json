@@ -1,0 +1,14 @@
+{
+  "name": "shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "db.ts",
+  "dependencies": {
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.7.2"
+  }
+}
